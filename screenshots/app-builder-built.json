@@ -1,0 +1,38 @@
+{
+  "url": "http://127.0.0.1:8081/",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "Chief Marketing Calendar",
+      "hasCanvas": false,
+      "bodyTextLen": 238,
+      "bodyTextHash": "374c7e3fa40078b9cc0ba23dc1d885e02e4554dccfc7df8924124e246e479290",
+      "bodyTextPrefix": "CHIEF MARKETING CALENDAR Team calendar EDM and SMS planning for ",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-built.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "Chief Marketing Calendar",
+      "hasCanvas": false,
+      "bodyTextLen": 225,
+      "bodyTextHash": "d4138845cbc7ec2034ee6b3ac11d5aff68ddea41fd6d97ace93b6d22c67b8da6",
+      "bodyTextPrefix": "CHIEF MARKETING CALENDAR Team calendar EDM and SMS planning for ",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-built-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "/workspace/screenshots/app-builder-built.json",
+  "divergesFromBaseline": false,
+  "baselineReasons": []
+}

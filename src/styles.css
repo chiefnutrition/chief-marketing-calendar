@@ -1,0 +1,111 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@font-face {
+  font-family: "ITC Avant Garde";
+  src: url("/fonts/ITCAvantGardeStdBold.otf") format("opentype");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Proxima Nova";
+  src: url("/fonts/ProximaNova-Regular.otf") format("opentype");
+  font-weight: 400 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Proxima Nova";
+  src: url("/fonts/ProximaNova-Bold.otf") format("opentype");
+  font-weight: 600 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@theme {
+  --color-bg: #f3eee4;
+  --color-surface: #fffbf5;
+  --color-surface-2: #ebe4d6;
+  --color-ink: #1d1d1d;
+  --color-muted: #6f6a62;
+  --color-subtle: #9a948a;
+  --color-line: #ddd4c4;
+  --color-accent: #1d1d1d;
+  --color-accent-fg: #f3eee4;
+  --color-clay: #6b3e2e;
+  --color-clay-fg: #f3eee4;
+  --color-school: #e4ddd0;
+  --color-danger: #8f2d2d;
+  --color-danger-fg: #f3eee4;
+  --color-sent: #8a9a86;
+
+  --font-sans: "Proxima Nova", "Segoe UI", system-ui, sans-serif;
+  --font-display: "ITC Avant Garde", "Century Gothic", "Futura", sans-serif;
+
+  --text-2xs: 0.625rem;
+  --text-2xs--line-height: 1.3;
+  --tracking-caps: 0.18em;
+
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-2xl: 32px;
+
+  --shadow-border:
+    0 0 0 1px color-mix(in oklab, var(--color-ink) 8%, transparent),
+    0 1px 2px -1px color-mix(in oklab, var(--color-ink) 6%, transparent),
+    0 8px 24px -12px color-mix(in oklab, var(--color-ink) 10%, transparent);
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background: var(--color-bg);
+    color: var(--color-ink);
+  }
+
+  body {
+    min-height: 100dvh;
+    background: var(--color-bg);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+    font-family: var(--font-display);
+    font-weight: 700;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  ::selection {
+    background: color-mix(in oklab, var(--color-accent) 22%, transparent);
+    color: var(--color-ink);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

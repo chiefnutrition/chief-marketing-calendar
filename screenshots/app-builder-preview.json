@@ -1,0 +1,36 @@
+{
+  "url": "http://127.0.0.1:8080/",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "Chief Marketing Calendar",
+      "hasCanvas": false,
+      "bodyTextLen": 219,
+      "bodyTextHash": "522d83d201fd18e9f7a28d5daa281ec54a609b395a5c01d35fe520ffd6538482",
+      "bodyTextPrefix": "MARKETING CALENDAR Team calendar EDM and SMS planning for Austra",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-preview.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "Chief Marketing Calendar",
+      "hasCanvas": false,
+      "bodyTextLen": 219,
+      "bodyTextHash": "522d83d201fd18e9f7a28d5daa281ec54a609b395a5c01d35fe520ffd6538482",
+      "bodyTextPrefix": "MARKETING CALENDAR Team calendar EDM and SMS planning for Austra",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-preview-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "/workspace/screenshots/app-builder-preview.json"
+}
