@@ -8,6 +8,7 @@ const badgeVariants = cva(
       variant: {
         edm: "bg-accent text-accent-fg",
         sms: "bg-clay text-clay-fg",
+        event: "bg-event text-event-fg",
         au: "bg-surface-2 text-ink",
         us: "bg-surface-2 text-ink",
         both: "bg-surface-2 text-muted",

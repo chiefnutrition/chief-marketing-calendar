@@ -1,9 +1,10 @@
 export type Region = "AU" | "US" | "BOTH";
 export type Market = "AU" | "US" | "BOTH";
-export type Channel = "EDM" | "SMS";
+export type Channel = "EDM" | "SMS" | "EVENT";
 export type CampaignStatus = "draft" | "scheduled" | "sent";
 export type DateCategory = "public" | "school" | "retail" | "cultural" | "sporting";
-export type Repeat = "none" | "weekly";
+export type Repeat = "none" | "daily" | "weekly" | "monthly" | "custom";
+export type RepeatUnit = "day" | "week" | "month";
 export type ApplyTo = "this" | "remaining";
 export type DeleteScope = "this" | "remaining";
 
@@ -24,6 +25,8 @@ export type Campaign = {
   channel: Channel;
   sendDate: string;
   sendTime: string;
+  endDate: string | null;
+  endTime: string;
   market: Market;
   status: CampaignStatus;
   subject: string;
@@ -38,6 +41,8 @@ export type CampaignInput = {
   channel: Channel;
   sendDate: string;
   sendTime: string;
+  endDate: string | null;
+  endTime: string;
   market: Market;
   status: CampaignStatus;
   subject: string;
@@ -46,6 +51,8 @@ export type CampaignInput = {
   keyDateId: number | null;
   repeat: Repeat;
   repeatUntil: string | null;
+  repeatInterval: number;
+  repeatUnit: RepeatUnit;
   applyTo: ApplyTo;
 };
 
@@ -64,3 +71,31 @@ export const AUDIENCE_PRESETS = [
   "VIP",
   "Lapsed 90d",
 ] as const;
+
+export function channelLabel(channel: Channel): string {
+  if (channel === "EVENT") return "Event";
+  return channel;
+}
+
+export function channelChipClass(channel: Channel): string {
+  if (channel === "SMS") return "bg-clay text-clay-fg";
+  if (channel === "EVENT") return "bg-event text-event-fg";
+  return "bg-accent text-accent-fg";
+}
+
+export function channelDotClass(channel: Channel): string {
+  if (channel === "SMS") return "bg-clay";
+  if (channel === "EVENT") return "bg-event";
+  return "bg-accent";
+}
+
+export function channelBadgeVariant(channel: Channel): "edm" | "sms" | "event" {
+  if (channel === "SMS") return "sms";
+  if (channel === "EVENT") return "event";
+  return "edm";
+}
+
+export function coversDate(c: Pick<Campaign, "sendDate" | "endDate">, iso: string): boolean {
+  const end = c.endDate && c.endDate > c.sendDate ? c.endDate : c.sendDate;
+  return iso >= c.sendDate && iso <= end;
+}

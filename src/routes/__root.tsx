@@ -15,7 +15,7 @@ export const Route = createRootRoute({
       { name: "theme-color", content: "#F3EEE4" },
       {
         name: "description",
-        content: "Team calendar for Chief EDM and SMS campaigns, with AU and US key dates.",
+        content: "Team calendar for Chief EDM, SMS and events, with AU and US key dates.",
       },
     ],
     links: [

@@ -61,7 +61,7 @@ export function LockScreen({ onUnlock }: { onUnlock: (token: string) => void }) 
           Team calendar
         </h1>
         <p className="mt-2 text-sm leading-relaxed text-muted">
-          EDM and SMS planning for Australia and the US, with the dates worth building campaigns around.
+          EDM, SMS and events for Australia and the US, with the dates worth building campaigns around.
         </p>
         <form onSubmit={onSubmit} className="mt-8 space-y-4">
           <div className="space-y-1.5">

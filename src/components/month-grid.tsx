@@ -1,4 +1,5 @@
 import type { Campaign, KeyDate } from "@/lib/calendar/types";
+import { channelChipClass, channelDotClass, channelLabel, coversDate } from "@/lib/calendar/types";
 import {
   isoInMonth,
   isInRange,
@@ -33,7 +34,7 @@ export function MonthGrid({
   keyDates: KeyDate[];
   campaigns: Campaign[];
   region: "ALL" | "AU" | "US";
-  channel: "ALL" | "EDM" | "SMS";
+  channel: "ALL" | "EDM" | "SMS" | "EVENT";
   showKeyDates: boolean;
   showSchool: boolean;
   selectedDate: string | null;
@@ -81,7 +82,7 @@ export function MonthGrid({
             : false;
           const dayCamps = campaigns.filter(
             (c) =>
-              c.sendDate === iso &&
+              coversDate(c, iso) &&
               (channel === "ALL" || c.channel === channel) &&
               matchesRegion(c.market, region),
           );
@@ -157,23 +158,17 @@ export function MonthGrid({
                     }}
                     className={cn(
                       "truncate rounded-xs px-1 py-0.5 text-left text-2xs font-medium leading-tight",
-                      c.channel === "EDM" ? "bg-accent text-accent-fg" : "bg-clay text-clay-fg",
+                      channelChipClass(c.channel),
                     )}
                   >
-                    {c.channel} {c.title}
+                    {channelLabel(c.channel)} {c.title}
                   </button>
                 ))}
                 {more > 0 ? <span className="text-2xs text-subtle">+{more}</span> : null}
               </div>
               <div className="mt-auto flex flex-wrap gap-0.5 md:hidden">
                 {dayCamps.slice(0, 3).map((c) => (
-                  <span
-                    key={c.id}
-                    className={cn(
-                      "size-1.5 rounded-full",
-                      c.channel === "EDM" ? "bg-accent" : "bg-clay",
-                    )}
-                  />
+                  <span key={c.id} className={cn("size-1.5 rounded-full", channelDotClass(c.channel))} />
                 ))}
                 {dayCamps.length === 0 && peekKeys.length > 0 ? (
                   <span className="size-1.5 rounded-full bg-subtle" />

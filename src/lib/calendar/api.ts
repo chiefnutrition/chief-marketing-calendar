@@ -1,37 +1,37 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { getSql } from "@/lib/db";
-import { weeklyDates } from "./dates";
+import { addDays, occurrenceDates, rangeLengthDays } from "./dates";
 import { buildKeyDates } from "./seed-data";
 import type { BoardData, Campaign, KeyDate } from "./types";
 
 const tokenSchema = z.object({ token: z.string().optional() });
 
-const channelSchema = z.enum(["EDM", "SMS"]);
+const channelSchema = z.enum(["EDM", "SMS", "EVENT"]);
 const marketSchema = z.enum(["AU", "US", "BOTH"]);
 const statusSchema = z.enum(["draft", "scheduled", "sent"]);
 const regionSchema = z.enum(["AU", "US", "BOTH"]);
 const categorySchema = z.enum(["public", "school", "retail", "cultural", "sporting"]);
+const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
 const campaignInput = z.object({
   token: z.string().optional(),
   title: z.string().trim().min(1).max(120),
   channel: channelSchema,
-  sendDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  sendDate: dateSchema,
   sendTime: z.string().max(8).optional().default(""),
+  endDate: dateSchema.nullable().optional().default(null),
+  endTime: z.string().max(8).optional().default(""),
   market: marketSchema,
   status: statusSchema,
   subject: z.string().max(200).optional().default(""),
   audience: z.string().max(120).optional().default(""),
   notes: z.string().max(2000).optional().default(""),
   keyDateId: z.number().int().nullable().optional().default(null),
-  repeat: z.enum(["none", "weekly"]).optional().default("none"),
-  repeatUntil: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
-    .nullable()
-    .optional()
-    .default(null),
+  repeat: z.enum(["none", "daily", "weekly", "monthly", "custom"]).optional().default("none"),
+  repeatUntil: dateSchema.nullable().optional().default(null),
+  repeatInterval: z.number().int().min(1).max(30).optional().default(1),
+  repeatUnit: z.enum(["day", "week", "month"]).optional().default("day"),
   applyTo: z.enum(["this", "remaining"]).optional().default("this"),
 });
 
@@ -52,6 +52,8 @@ type CampaignRow = {
   channel: Campaign["channel"];
   send_date: string;
   send_time: string;
+  end_date: string | null;
+  end_time: string;
   market: Campaign["market"];
   status: Campaign["status"];
   subject: string;
@@ -81,6 +83,8 @@ function mapCampaign(row: CampaignRow): Campaign {
     channel: row.channel,
     sendDate: row.send_date,
     sendTime: row.send_time,
+    endDate: row.end_date ?? null,
+    endTime: row.end_time ?? "",
     market: row.market,
     status: row.status,
     subject: row.subject,
@@ -120,31 +124,37 @@ async function ensureSeeded() {
   }
 }
 
+type InsertPayload = {
+  title: string;
+  channel: Campaign["channel"];
+  sendDate: string;
+  sendTime: string;
+  endDate: string | null;
+  endTime: string;
+  market: Campaign["market"];
+  status: Campaign["status"];
+  subject: string;
+  audience: string;
+  notes: string;
+  keyDateId: number | null;
+  seriesId: number | null;
+};
+
 async function insertCampaign(
   sql: Awaited<ReturnType<typeof getSql>>,
-  data: {
-    title: string;
-    channel: Campaign["channel"];
-    sendDate: string;
-    sendTime: string;
-    market: Campaign["market"];
-    status: Campaign["status"];
-    subject: string;
-    audience: string;
-    notes: string;
-    keyDateId: number | null;
-    seriesId: number | null;
-  },
+  data: InsertPayload,
 ): Promise<CampaignRow> {
   const rows = await sql<CampaignRow>`
     insert into campaigns (
-      title, channel, send_date, send_time, market, status, subject, audience, notes, key_date_id, series_id
+      title, channel, send_date, send_time, end_date, end_time, market, status, subject, audience, notes, key_date_id, series_id
     )
     values (
       ${data.title},
       ${data.channel},
       ${data.sendDate},
       ${data.sendTime},
+      ${data.endDate},
+      ${data.endTime},
       ${data.market},
       ${data.status},
       ${data.subject},
@@ -153,10 +163,16 @@ async function insertCampaign(
       ${data.keyDateId},
       ${data.seriesId}
     )
-    returning id, title, channel, send_date, send_time, market, status, subject, audience, notes, key_date_id, series_id
+    returning id, title, channel, send_date, send_time, end_date, end_time, market, status, subject, audience, notes, key_date_id, series_id
   `;
   if (!rows[0]) throw new Error("Could not create campaign");
   return rows[0];
+}
+
+function instanceEnd(start: string, originStart: string, originEnd: string | null): string | null {
+  if (!originEnd) return null;
+  const span = rangeLengthDays(originStart, originEnd);
+  return span <= 1 ? start : addDays(start, span - 1);
 }
 
 export const unlockHint = createServerFn({ method: "POST" }).handler(async () => {
@@ -221,9 +237,10 @@ export const loadBoard = createServerFn({ method: "POST" })
       order by start_date, name
     `;
     const campRows = await sql<CampaignRow>`
-      select id, title, channel, send_date, send_time, market, status, subject, audience, notes, key_date_id, series_id
+      select id, title, channel, send_date, send_time, end_date, end_time, market, status, subject, audience, notes, key_date_id, series_id
       from campaigns
-      where send_date >= ${yearStart} and send_date <= ${yearEnd}
+      where send_date <= ${yearEnd}
+        and coalesce(end_date, send_date) >= ${yearStart}
       order by send_date, send_time, id
     `;
     return {
@@ -237,10 +254,12 @@ export const createCampaign = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     await requireTeam(data.token);
     const sql = await getSql();
+    const originEnd = data.endDate && data.endDate >= data.sendDate ? data.endDate : null;
     const payload = {
       title: data.title,
       channel: data.channel,
       sendTime: data.sendTime ?? "",
+      endTime: data.endTime ?? "",
       market: data.market,
       status: data.status,
       subject: data.subject ?? "",
@@ -249,14 +268,18 @@ export const createCampaign = createServerFn({ method: "POST" })
       keyDateId: data.keyDateId ?? null,
     };
 
-    const dates =
-      data.repeat === "weekly" && data.repeatUntil
-        ? weeklyDates(data.sendDate, data.repeatUntil, 80)
-        : [data.sendDate];
+    const dates = occurrenceDates(
+      data.sendDate,
+      data.repeatUntil,
+      data.repeat ?? "none",
+      data.repeatInterval ?? 1,
+      data.repeatUnit ?? "day",
+    );
 
     const first = await insertCampaign(sql, {
       ...payload,
       sendDate: dates[0]!,
+      endDate: instanceEnd(dates[0]!, data.sendDate, originEnd),
       seriesId: null,
     });
 
@@ -271,6 +294,7 @@ export const createCampaign = createServerFn({ method: "POST" })
       await insertCampaign(sql, {
         ...payload,
         sendDate,
+        endDate: instanceEnd(sendDate, data.sendDate, originEnd),
         seriesId: first.id,
         keyDateId: null,
       });
@@ -284,6 +308,8 @@ export const updateCampaign = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     await requireTeam(data.token);
     const sql = await getSql();
+    const originEnd = data.endDate && data.endDate >= data.sendDate ? data.endDate : null;
+    const span = rangeLengthDays(data.sendDate, originEnd);
 
     if (data.applyTo === "remaining") {
       const current = await sql<{ series_id: number | null; send_date: string }>`
@@ -292,20 +318,29 @@ export const updateCampaign = createServerFn({ method: "POST" })
       const seriesId = current[0]?.series_id;
       const fromDate = current[0]?.send_date;
       if (seriesId && fromDate) {
-        await sql`
-          update campaigns
-          set
-            title = ${data.title},
-            channel = ${data.channel},
-            send_time = ${data.sendTime ?? ""},
-            market = ${data.market},
-            status = ${data.status},
-            subject = ${data.subject ?? ""},
-            audience = ${data.audience ?? ""},
-            notes = ${data.notes ?? ""},
-            updated_at = now()
+        const remaining = await sql<{ id: number; send_date: string }>`
+          select id, send_date from campaigns
           where series_id = ${seriesId} and send_date >= ${fromDate}
         `;
+        for (const row of remaining) {
+          const endDate = originEnd ? (span <= 1 ? row.send_date : addDays(row.send_date, span - 1)) : null;
+          await sql`
+            update campaigns
+            set
+              title = ${data.title},
+              channel = ${data.channel},
+              send_time = ${data.sendTime ?? ""},
+              end_date = ${endDate},
+              end_time = ${data.endTime ?? ""},
+              market = ${data.market},
+              status = ${data.status},
+              subject = ${data.subject ?? ""},
+              audience = ${data.audience ?? ""},
+              notes = ${data.notes ?? ""},
+              updated_at = now()
+            where id = ${row.id}
+          `;
+        }
       }
     }
 
@@ -316,6 +351,8 @@ export const updateCampaign = createServerFn({ method: "POST" })
         channel = ${data.channel},
         send_date = ${data.sendDate},
         send_time = ${data.sendTime ?? ""},
+        end_date = ${originEnd},
+        end_time = ${data.endTime ?? ""},
         market = ${data.market},
         status = ${data.status},
         subject = ${data.subject ?? ""},
@@ -324,7 +361,7 @@ export const updateCampaign = createServerFn({ method: "POST" })
         key_date_id = ${data.keyDateId ?? null},
         updated_at = now()
       where id = ${data.id}
-      returning id, title, channel, send_date, send_time, market, status, subject, audience, notes, key_date_id, series_id
+      returning id, title, channel, send_date, send_time, end_date, end_time, market, status, subject, audience, notes, key_date_id, series_id
     `;
     if (!rows[0]) throw new Error("Campaign not found");
     return mapCampaign(rows[0]);
@@ -335,17 +372,25 @@ export const moveCampaign = createServerFn({ method: "POST" })
     z.object({
       token: z.string().optional(),
       id: z.number().int(),
-      sendDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      sendDate: dateSchema,
     }),
   )
   .handler(async ({ data }) => {
     await requireTeam(data.token);
     const sql = await getSql();
+    const current = await sql<{ send_date: string; end_date: string | null }>`
+      select send_date, end_date from campaigns where id = ${data.id}
+    `;
+    const prev = current[0];
+    const newEnd =
+      prev?.end_date && prev.send_date
+        ? instanceEnd(data.sendDate, prev.send_date, prev.end_date)
+        : prev?.end_date ?? null;
     const rows = await sql<CampaignRow>`
       update campaigns
-      set send_date = ${data.sendDate}, updated_at = now()
+      set send_date = ${data.sendDate}, end_date = ${newEnd}, updated_at = now()
       where id = ${data.id}
-      returning id, title, channel, send_date, send_time, market, status, subject, audience, notes, key_date_id, series_id
+      returning id, title, channel, send_date, send_time, end_date, end_time, market, status, subject, audience, notes, key_date_id, series_id
     `;
     if (!rows[0]) throw new Error("Campaign not found");
     return mapCampaign(rows[0]);
@@ -385,12 +430,8 @@ export const createKeyDate = createServerFn({ method: "POST" })
     z.object({
       token: z.string().optional(),
       name: z.string().trim().min(1).max(120),
-      startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-      endDate: z
-        .string()
-        .regex(/^\d{4}-\d{2}-\d{2}$/)
-        .nullable()
-        .optional(),
+      startDate: dateSchema,
+      endDate: dateSchema.nullable().optional(),
       region: regionSchema,
       category: categorySchema,
       notes: z.string().max(500).optional().default(""),

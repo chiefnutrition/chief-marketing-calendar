@@ -36,6 +36,8 @@ import {
 } from "@/lib/calendar/dates";
 import {
   TOKEN_STORAGE_KEY,
+  channelChipClass,
+  channelLabel,
   type Campaign,
   type CampaignInput,
   type DeleteScope,
@@ -44,7 +46,7 @@ import {
 import { cn } from "@/lib/utils";
 
 type RegionFilter = "ALL" | "AU" | "US";
-type ChannelFilter = "ALL" | "EDM" | "SMS";
+type ChannelFilter = "ALL" | "EDM" | "SMS" | "EVENT";
 type View = "month" | "agenda";
 
 function FilterPill<T extends string>({
@@ -168,7 +170,7 @@ export function CalendarApp({
       } else {
         const result = await createCampaign({ data: { token, ...input } });
         toast.success(
-          result.count > 1 ? `Added ${result.count} weekly sends.` : "Campaign added.",
+          result.count > 1 ? `Added ${result.count} to the calendar.` : input.channel === "EVENT" ? "Event added." : "Campaign added.",
         );
       }
       setFormOpen(false);
@@ -394,6 +396,9 @@ export function CalendarApp({
             <FilterPill value="SMS" current={channel} onClick={setChannel}>
               SMS
             </FilterPill>
+            <FilterPill value="EVENT" current={channel} onClick={setChannel}>
+              Events
+            </FilterPill>
             <span className="mx-1 h-4 w-px bg-line" />
             <button
               type="button"
@@ -455,12 +460,10 @@ export function CalendarApp({
                             <span
                               className={cn(
                                 "mt-0.5 rounded-full px-2 py-0.5 text-2xs font-medium",
-                                item.campaign.channel === "EDM"
-                                  ? "bg-accent text-accent-fg"
-                                  : "bg-clay text-clay-fg",
+                                channelChipClass(item.campaign.channel),
                               )}
                             >
-                              {item.campaign.channel}
+                              {channelLabel(item.campaign.channel)}
                             </span>
                             <span className="min-w-0 flex-1">
                               <span className="flex items-center gap-1.5 text-sm font-medium">
@@ -471,6 +474,8 @@ export function CalendarApp({
                               </span>
                               <span className="text-xs text-muted">
                                 {item.campaign.market} · {item.campaign.status}
+                                {item.campaign.sendTime ? ` · ${item.campaign.sendTime}` : ""}
+                                {item.campaign.endTime ? `–${item.campaign.endTime}` : ""}
                                 {item.campaign.audience ? ` · ${item.campaign.audience}` : ""}
                                 {item.campaign.subject ? ` · ${item.campaign.subject}` : ""}
                               </span>
@@ -513,6 +518,9 @@ export function CalendarApp({
               </span>
               <span className="inline-flex items-center gap-1.5">
                 <span className="size-2 rounded-xs bg-clay" /> SMS
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <span className="size-2 rounded-xs bg-event" /> Event
               </span>
               <span className="inline-flex items-center gap-1.5">
                 <span className="size-2 rounded-xs bg-school" /> School holidays
@@ -581,7 +589,7 @@ export function CalendarApp({
           <DialogHeader>
             <DialogTitle>{editing ? "Edit campaign" : "New campaign"}</DialogTitle>
             <DialogDescription>
-              {editing ? "Update this EDM or SMS." : `Sending ${formatLong(formDate)}.`}
+              {editing ? "Update this item." : `Starting ${formatLong(formDate)}.`}
             </DialogDescription>
           </DialogHeader>
           {formOpen ? (

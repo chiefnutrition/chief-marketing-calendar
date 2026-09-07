@@ -1,8 +1,14 @@
-import { Mail, MessageSquare, Plus, Repeat, Trash2 } from "lucide-react";
+import { CalendarDays, Mail, MessageSquare, Plus, Repeat, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatLong, isInRange, rangeLengthDays } from "@/lib/calendar/dates";
-import type { Campaign, KeyDate } from "@/lib/calendar/types";
+import {
+  channelBadgeVariant,
+  channelLabel,
+  coversDate,
+  type Campaign,
+  type KeyDate,
+} from "@/lib/calendar/types";
 import { cn } from "@/lib/utils";
 
 function categoryLabel(c: KeyDate["category"]) {
@@ -11,6 +17,17 @@ function categoryLabel(c: KeyDate["category"]) {
   if (c === "retail") return "Retail";
   if (c === "sporting") return "Sport";
   return "Cultural";
+}
+
+function ChannelIcon({ channel }: { channel: Campaign["channel"] }) {
+  if (channel === "SMS") return <MessageSquare className="size-3.5 text-clay" />;
+  if (channel === "EVENT") return <CalendarDays className="size-3.5 text-event" />;
+  return <Mail className="size-3.5 text-accent" />;
+}
+
+function timeRange(c: Campaign): string {
+  if (c.sendTime && c.endTime) return `${c.sendTime}–${c.endTime}`;
+  return c.sendTime || c.endTime || "";
 }
 
 export function DayPanel({
@@ -31,7 +48,7 @@ export function DayPanel({
   onDeleteKeyDate: (id: number) => void;
 }) {
   const dayKeys = keyDates.filter((k) => isInRange(date, k.startDate, k.endDate));
-  const dayCamps = campaigns.filter((c) => c.sendDate === date);
+  const dayCamps = campaigns.filter((c) => coversDate(c, date));
 
   return (
     <div className="flex h-full flex-col">
@@ -44,7 +61,7 @@ export function DayPanel({
         </div>
         <Button size="sm" onClick={onAdd} data-testid="add-campaign-day">
           <Plus className="size-4" />
-          Campaign
+          Add
         </Button>
       </div>
 
@@ -105,10 +122,10 @@ export function DayPanel({
 
       <section className="mt-6 flex-1">
         <h3 className="text-2xs font-medium tracking-caps text-muted uppercase">
-          Campaigns
+          Campaigns & events
         </h3>
         {dayCamps.length === 0 ? (
-          <p className="mt-2 text-sm text-subtle">No EDM or SMS on this day yet.</p>
+          <p className="mt-2 text-sm text-subtle">Nothing on this day yet.</p>
         ) : (
           <ul className="mt-2 space-y-2">
             {dayCamps.map((c) => (
@@ -119,15 +136,11 @@ export function DayPanel({
                   className="w-full rounded-md border border-line bg-bg px-3 py-2.5 text-left transition-colors hover:bg-surface-2"
                 >
                   <div className="flex items-center gap-2">
-                    {c.channel === "EDM" ? (
-                      <Mail className="size-3.5 text-accent" />
-                    ) : (
-                      <MessageSquare className="size-3.5 text-clay" />
-                    )}
+                    <ChannelIcon channel={c.channel} />
                     <span className="text-sm font-medium text-ink">{c.title}</span>
-                    {c.seriesId ? <Repeat className="size-3 text-subtle" aria-label="Weekly" /> : null}
-                    <Badge variant={c.channel === "EDM" ? "edm" : "sms"} className="ml-auto">
-                      {c.channel}
+                    {c.seriesId ? <Repeat className="size-3 text-subtle" aria-label="Repeats" /> : null}
+                    <Badge variant={channelBadgeVariant(c.channel)} className="ml-auto">
+                      {channelLabel(c.channel)}
                     </Badge>
                   </div>
                   <div className="mt-1.5 flex flex-wrap gap-1.5">
@@ -135,12 +148,14 @@ export function DayPanel({
                     <Badge variant={c.market === "BOTH" ? "both" : c.market === "US" ? "us" : "au"}>
                       {c.market === "BOTH" ? "AU + US" : c.market}
                     </Badge>
-                    {c.sendTime ? (
-                      <span className="text-2xs tabular-nums text-subtle">{c.sendTime}</span>
+                    {timeRange(c) ? (
+                      <span className="text-2xs tabular-nums text-subtle">{timeRange(c)}</span>
                     ) : null}
                   </div>
                   {c.audience ? (
-                    <p className="mt-1.5 text-xs text-muted">To {c.audience}</p>
+                    <p className="mt-1.5 text-xs text-muted">
+                      {c.channel === "EVENT" ? "With" : "To"} {c.audience}
+                    </p>
                   ) : null}
                   {c.subject ? (
                     <p className={cn("mt-1 truncate text-xs text-muted")}>{c.subject}</p>
