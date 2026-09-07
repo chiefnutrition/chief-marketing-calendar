@@ -1,4 +1,4 @@
-import { Mail, MessageSquare, Plus, Trash2 } from "lucide-react";
+import { Mail, MessageSquare, Plus, Repeat, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatLong, isInRange, rangeLengthDays } from "@/lib/calendar/dates";
@@ -125,6 +125,7 @@ export function DayPanel({
                       <MessageSquare className="size-3.5 text-clay" />
                     )}
                     <span className="text-sm font-medium text-ink">{c.title}</span>
+                    {c.seriesId ? <Repeat className="size-3 text-subtle" aria-label="Weekly" /> : null}
                     <Badge variant={c.channel === "EDM" ? "edm" : "sms"} className="ml-auto">
                       {c.channel}
                     </Badge>
@@ -138,8 +139,11 @@ export function DayPanel({
                       <span className="text-2xs tabular-nums text-subtle">{c.sendTime}</span>
                     ) : null}
                   </div>
+                  {c.audience ? (
+                    <p className="mt-1.5 text-xs text-muted">To {c.audience}</p>
+                  ) : null}
                   {c.subject ? (
-                    <p className={cn("mt-1.5 truncate text-xs text-muted")}>{c.subject}</p>
+                    <p className={cn("mt-1 truncate text-xs text-muted")}>{c.subject}</p>
                   ) : null}
                 </button>
               </li>

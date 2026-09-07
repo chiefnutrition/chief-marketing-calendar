@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { ChevronLeft, ChevronRight, Lock, Plus, Settings } from "lucide-react";
+import { ChevronLeft, ChevronRight, Lock, Plus, Repeat, Settings } from "lucide-react";
 import { toast } from "sonner";
 import { Wordmark } from "@/components/wordmark";
 import { MonthGrid } from "@/components/month-grid";
@@ -34,7 +34,13 @@ import {
   todayISO,
   toISO,
 } from "@/lib/calendar/dates";
-import { TOKEN_STORAGE_KEY, type Campaign, type CampaignInput, type KeyDate } from "@/lib/calendar/types";
+import {
+  TOKEN_STORAGE_KEY,
+  type Campaign,
+  type CampaignInput,
+  type DeleteScope,
+  type KeyDate,
+} from "@/lib/calendar/types";
 import { cn } from "@/lib/utils";
 
 type RegionFilter = "ALL" | "AU" | "US";
@@ -96,6 +102,10 @@ export function CalendarApp({
   const year = month.getFullYear();
   const dialogOpen = dayOpen || formOpen || settingsOpen;
 
+  const remainingCount = editing?.seriesId
+    ? campaigns.filter((c) => c.seriesId === editing.seriesId && c.sendDate >= editing.sendDate).length
+    : 1;
+
   const refresh = useCallback(async () => {
     const data = await loadBoard({ data: { token, year } });
     setKeyDates(data.keyDates);
@@ -154,10 +164,12 @@ export function CalendarApp({
     try {
       if (editing) {
         await updateCampaign({ data: { token, id: editing.id, ...input } });
-        toast.success("Campaign updated.");
+        toast.success(input.applyTo === "remaining" ? "Updated remaining sends." : "Campaign updated.");
       } else {
-        await createCampaign({ data: { token, ...input } });
-        toast.success("Campaign added.");
+        const result = await createCampaign({ data: { token, ...input } });
+        toast.success(
+          result.count > 1 ? `Added ${result.count} weekly sends.` : "Campaign added.",
+        );
       }
       setFormOpen(false);
       setEditing(null);
@@ -169,12 +181,12 @@ export function CalendarApp({
     }
   }
 
-  async function removeCampaign() {
+  async function removeCampaign(scope: DeleteScope) {
     if (!editing) return;
     setSaving(true);
     try {
-      await deleteCampaign({ data: { token, id: editing.id } });
-      toast.success("Campaign removed.");
+      await deleteCampaign({ data: { token, id: editing.id, scope } });
+      toast.success(scope === "remaining" ? "Upcoming sends removed." : "Campaign removed.");
       setFormOpen(false);
       setEditing(null);
       await refresh();
@@ -451,9 +463,15 @@ export function CalendarApp({
                               {item.campaign.channel}
                             </span>
                             <span className="min-w-0 flex-1">
-                              <span className="block text-sm font-medium">{item.campaign.title}</span>
+                              <span className="flex items-center gap-1.5 text-sm font-medium">
+                                {item.campaign.title}
+                                {item.campaign.seriesId ? (
+                                  <Repeat className="size-3 text-subtle" aria-label="Weekly" />
+                                ) : null}
+                              </span>
                               <span className="text-xs text-muted">
                                 {item.campaign.market} · {item.campaign.status}
+                                {item.campaign.audience ? ` · ${item.campaign.audience}` : ""}
                                 {item.campaign.subject ? ` · ${item.campaign.subject}` : ""}
                               </span>
                             </span>
@@ -566,14 +584,18 @@ export function CalendarApp({
               {editing ? "Update this EDM or SMS." : `Sending ${formatLong(formDate)}.`}
             </DialogDescription>
           </DialogHeader>
-          <CampaignForm
-            initial={editing ?? undefined}
-            date={formDate}
-            keyDates={keyDates}
-            pending={saving}
-            onSubmit={saveCampaign}
-            onDelete={editing ? removeCampaign : undefined}
-          />
+          {formOpen ? (
+            <CampaignForm
+              key={editing ? `edit-${editing.id}` : `new-${formDate}`}
+              initial={editing ?? undefined}
+              date={formDate}
+              keyDates={keyDates}
+              pending={saving}
+              remainingCount={remainingCount}
+              onSubmit={saveCampaign}
+              onDelete={editing ? removeCampaign : undefined}
+            />
+          ) : null}
         </DialogContent>
       </Dialog>
 

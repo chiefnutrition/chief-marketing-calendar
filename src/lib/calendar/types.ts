@@ -3,6 +3,9 @@ export type Market = "AU" | "US" | "BOTH";
 export type Channel = "EDM" | "SMS";
 export type CampaignStatus = "draft" | "scheduled" | "sent";
 export type DateCategory = "public" | "school" | "retail" | "cultural" | "sporting";
+export type Repeat = "none" | "weekly";
+export type ApplyTo = "this" | "remaining";
+export type DeleteScope = "this" | "remaining";
 
 export type KeyDate = {
   id: number;
@@ -27,6 +30,7 @@ export type Campaign = {
   audience: string;
   notes: string;
   keyDateId: number | null;
+  seriesId: number | null;
 };
 
 export type CampaignInput = {
@@ -40,6 +44,9 @@ export type CampaignInput = {
   audience: string;
   notes: string;
   keyDateId: number | null;
+  repeat: Repeat;
+  repeatUntil: string | null;
+  applyTo: ApplyTo;
 };
 
 export type BoardData = {
@@ -48,3 +55,12 @@ export type BoardData = {
 };
 
 export const TOKEN_STORAGE_KEY = "chief_cal_token";
+
+export const AUDIENCE_PRESETS = [
+  "All subscribers",
+  "AU list",
+  "US list",
+  "Recipe list",
+  "VIP",
+  "Lapsed 90d",
+] as const;

@@ -1,9 +1,22 @@
-import { useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
+import { Repeat } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import type { Campaign, CampaignInput, CampaignStatus, Channel, KeyDate, Market } from "@/lib/calendar/types";
+import { addCalendarMonths, formatDayMonth, weekdayLong, weeklyDates } from "@/lib/calendar/dates";
+import {
+  AUDIENCE_PRESETS,
+  type ApplyTo,
+  type Campaign,
+  type CampaignInput,
+  type CampaignStatus,
+  type Channel,
+  type DeleteScope,
+  type KeyDate,
+  type Market,
+  type Repeat as RepeatKind,
+} from "@/lib/calendar/types";
 import { cn } from "@/lib/utils";
 
 const empty = (date: string): CampaignInput => ({
@@ -17,6 +30,9 @@ const empty = (date: string): CampaignInput => ({
   audience: "",
   notes: "",
   keyDateId: null,
+  repeat: "none",
+  repeatUntil: addCalendarMonths(date, 12),
+  applyTo: "this",
 });
 
 function fromCampaign(c: Campaign): CampaignInput {
@@ -31,6 +47,9 @@ function fromCampaign(c: Campaign): CampaignInput {
     audience: c.audience,
     notes: c.notes,
     keyDateId: c.keyDateId,
+    repeat: "none",
+    repeatUntil: addCalendarMonths(c.sendDate, 12),
+    applyTo: "this",
   };
 }
 
@@ -67,6 +86,7 @@ export function CampaignForm({
   date,
   keyDates,
   pending,
+  remainingCount = 1,
   onSubmit,
   onDelete,
 }: {
@@ -74,18 +94,33 @@ export function CampaignForm({
   date: string;
   keyDates: KeyDate[];
   pending: boolean;
+  remainingCount?: number;
   onSubmit: (input: CampaignInput) => Promise<void>;
-  onDelete?: () => Promise<void>;
+  onDelete?: (scope: DeleteScope) => Promise<void>;
 }) {
   const [form, setForm] = useState<CampaignInput>(initial ? fromCampaign(initial) : empty(date));
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<DeleteScope | null>(null);
+  const isSeries = Boolean(initial?.seriesId);
   const dayDates = keyDates.filter((k) => {
     const end = k.endDate ?? k.startDate;
     return form.sendDate >= k.startDate && form.sendDate <= end;
   });
 
+  const sendCount = useMemo(() => {
+    if (form.repeat !== "weekly" || !form.repeatUntil) return 1;
+    return weeklyDates(form.sendDate, form.repeatUntil, 80).length;
+  }, [form.repeat, form.sendDate, form.repeatUntil]);
+
   function set<K extends keyof CampaignInput>(key: K, value: CampaignInput[K]) {
-    setForm((prev) => ({ ...prev, [key]: value }));
+    setForm((prev) => {
+      const next = { ...prev, [key]: value };
+      if (key === "sendDate" && typeof value === "string") {
+        if (!prev.repeatUntil || prev.repeatUntil < value) {
+          next.repeatUntil = addCalendarMonths(value, 12);
+        }
+      }
+      return next;
+    });
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -103,7 +138,7 @@ export function CampaignForm({
           data-testid="campaign-title"
           value={form.title}
           onChange={(e) => set("title", e.target.value)}
-          placeholder="Mother's Day EDM"
+          placeholder="Weekly newsletter"
           autoFocus
         />
       </div>
@@ -123,9 +158,37 @@ export function CampaignForm({
         />
       </div>
 
+      <div className="space-y-1.5">
+        <Label htmlFor="audience">Audience</Label>
+        <Input
+          id="audience"
+          value={form.audience}
+          onChange={(e) => set("audience", e.target.value)}
+          placeholder="All subscribers"
+        />
+        <div className="flex flex-wrap gap-1.5 pt-0.5">
+          {AUDIENCE_PRESETS.map((preset) => {
+            const active = form.audience === preset;
+            return (
+              <button
+                key={preset}
+                type="button"
+                onClick={() => set("audience", active ? "" : preset)}
+                className={cn(
+                  "h-8 rounded-full px-2.5 text-2xs font-medium transition-colors duration-150",
+                  active ? "bg-accent text-accent-fg" : "bg-surface-2 text-muted hover:text-ink",
+                )}
+              >
+                {preset}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
-          <Label htmlFor="send-date">Send date</Label>
+          <Label htmlFor="send-date">{form.repeat === "weekly" ? "First send" : "Send date"}</Label>
           <Input
             id="send-date"
             type="date"
@@ -143,6 +206,58 @@ export function CampaignForm({
           />
         </div>
       </div>
+
+      {initial ? (
+        isSeries ? (
+          <div className="space-y-1.5">
+            <Label>Apply changes to</Label>
+            <Segment
+              value={form.applyTo}
+              onChange={(v) => set("applyTo", v as ApplyTo)}
+              options={
+                remainingCount > 1
+                  ? [
+                      { value: "this", label: "This send" },
+                      { value: "remaining", label: "All remaining" },
+                    ]
+                  : [{ value: "this", label: "This send" }]
+              }
+            />
+            <p className="flex items-center gap-1.5 text-2xs text-subtle">
+              <Repeat className="size-3" />
+              Weekly series · {weekdayLong(initial.sendDate)}s
+            </p>
+          </div>
+        ) : null
+      ) : (
+        <div className="space-y-1.5">
+          <Label>Repeats</Label>
+          <Segment
+            value={form.repeat}
+            onChange={(v) => set("repeat", v as RepeatKind)}
+            options={[
+              { value: "none", label: "Once" },
+              { value: "weekly", label: "Weekly" },
+            ]}
+          />
+          {form.repeat === "weekly" ? (
+            <div className="space-y-1.5 pt-1">
+              <Label htmlFor="repeat-until">Until</Label>
+              <Input
+                id="repeat-until"
+                type="date"
+                min={form.sendDate}
+                value={form.repeatUntil ?? ""}
+                onChange={(e) => set("repeatUntil", e.target.value || null)}
+              />
+              <p className="text-2xs text-subtle">
+                Every {weekdayLong(form.sendDate)} · {sendCount} send{sendCount === 1 ? "" : "s"}
+                {form.repeatUntil ? ` through ${formatDayMonth(form.repeatUntil)}` : ""}
+              </p>
+            </div>
+          ) : null}
+        </div>
+      )}
 
       <div className="space-y-1.5">
         <Label>Market</Label>
@@ -176,21 +291,11 @@ export function CampaignForm({
           id="subject"
           value={form.subject}
           onChange={(e) => set("subject", e.target.value)}
-          placeholder={form.channel === "SMS" ? "Dad, this one's for you." : "Father's Day, sorted."}
+          placeholder={form.channel === "SMS" ? "New recipes this week." : "This week’s recipes"}
         />
       </div>
 
-      <div className="space-y-1.5">
-        <Label htmlFor="audience">Audience</Label>
-        <Input
-          id="audience"
-          value={form.audience}
-          onChange={(e) => set("audience", e.target.value)}
-          placeholder="AU VIP · purchased 90d"
-        />
-      </div>
-
-      {dayDates.length > 0 ? (
+      {form.repeat === "none" && dayDates.length > 0 ? (
         <div className="space-y-1.5">
           <Label htmlFor="key-date">Tied to</Label>
           <select
@@ -221,18 +326,48 @@ export function CampaignForm({
 
       <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:justify-end">
         {onDelete ? (
-          confirmDelete ? (
-            <Button type="button" variant="danger" onClick={onDelete} disabled={pending}>
+          isSeries ? (
+            confirmDelete ? (
+              <Button
+                type="button"
+                variant="danger"
+                onClick={() => onDelete(confirmDelete)}
+                disabled={pending}
+              >
+                {confirmDelete === "remaining"
+                  ? `Delete ${remainingCount} upcoming`
+                  : "Confirm delete this send"}
+              </Button>
+            ) : (
+              <div className="flex flex-1 flex-wrap gap-2">
+                <Button type="button" variant="ghost" onClick={() => setConfirmDelete("this")}>
+                  Delete this send
+                </Button>
+                {remainingCount > 1 ? (
+                  <Button type="button" variant="ghost" onClick={() => setConfirmDelete("remaining")}>
+                    Delete upcoming
+                  </Button>
+                ) : null}
+              </div>
+            )
+          ) : confirmDelete ? (
+            <Button type="button" variant="danger" onClick={() => onDelete("this")} disabled={pending}>
               Confirm delete
             </Button>
           ) : (
-            <Button type="button" variant="ghost" onClick={() => setConfirmDelete(true)}>
+            <Button type="button" variant="ghost" onClick={() => setConfirmDelete("this")}>
               Delete
             </Button>
           )
         ) : null}
         <Button type="submit" disabled={pending || !form.title.trim()} data-testid="save-campaign">
-          {pending ? "Saving…" : initial ? "Save changes" : "Add campaign"}
+          {pending
+            ? "Saving…"
+            : initial
+              ? "Save changes"
+              : form.repeat === "weekly"
+                ? `Add ${sendCount} sends`
+                : "Add campaign"}
         </Button>
       </div>
     </form>

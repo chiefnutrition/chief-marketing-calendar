@@ -1,4 +1,4 @@
-import { Mail, MessageSquare } from "lucide-react";
+import { Mail, MessageSquare, Repeat } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { formatDayMonth, todayISO, toISO } from "@/lib/calendar/dates";
 import type { Campaign, KeyDate } from "@/lib/calendar/types";
@@ -76,9 +76,13 @@ export function Upcoming({
                     <MessageSquare className="mt-0.5 size-3.5 shrink-0 text-clay" />
                   )}
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm text-ink">{c.title}</span>
+                    <span className="flex items-center gap-1 truncate text-sm text-ink">
+                      {c.title}
+                      {c.seriesId ? <Repeat className="size-3 shrink-0 text-subtle" /> : null}
+                    </span>
                     <span className="text-2xs text-subtle">
-                      {c.channel} · {c.market} · {c.status}
+                      {c.channel} · {c.market}
+                      {c.audience ? ` · ${c.audience}` : ` · ${c.status}`}
                     </span>
                   </span>
                 </button>

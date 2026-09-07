@@ -23,6 +23,12 @@ export function addMonths(date: Date, n: number): Date {
   return new Date(date.getFullYear(), date.getMonth() + n, 1);
 }
 
+export function addCalendarMonths(iso: string, n: number): string {
+  const d = fromISO(iso);
+  d.setMonth(d.getMonth() + n);
+  return toISO(d);
+}
+
 export function daysInMonth(year: number, monthIndex: number): number {
   return new Date(year, monthIndex + 1, 0).getDate();
 }
@@ -72,8 +78,27 @@ export function formatDayMonth(iso: string): string {
   });
 }
 
+export function weekdayLong(iso: string): string {
+  return fromISO(iso).toLocaleDateString("en-AU", { weekday: "long" });
+}
+
 export function monthTitle(date: Date): string {
   return date.toLocaleDateString("en-AU", { month: "long", year: "numeric" });
+}
+
+/** Weekly send dates from start through until, inclusive. Caps at `max`. */
+export function weeklyDates(start: string, until: string, max = 80): string[] {
+  const dates: string[] = [];
+  const cursor = fromISO(start);
+  const end = fromISO(until);
+  if (Number.isNaN(cursor.getTime()) || Number.isNaN(end.getTime()) || end < cursor) {
+    return [start];
+  }
+  while (cursor <= end && dates.length < max) {
+    dates.push(toISO(cursor));
+    cursor.setDate(cursor.getDate() + 7);
+  }
+  return dates.length > 0 ? dates : [start];
 }
 
 export const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
