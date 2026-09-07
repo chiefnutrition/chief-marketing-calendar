@@ -6,7 +6,8 @@ export type DbSource = "neon" | "pglite";
 function readDatabaseUrl(): string | undefined {
   const raw = typeof process !== "undefined" ? process.env["DATABASE_URL"] : undefined;
   const trimmed = raw?.trim();
-  return trimmed ? trimmed : undefined;
+  if (!trimmed) return undefined;
+  return trimmed.replace(/&?channel_binding=require/g, "").replace(/\?&/, "?").replace(/\?$/, "");
 }
 
 function onVercel(): boolean {
